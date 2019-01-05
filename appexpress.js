@@ -7,6 +7,10 @@ const sequelize = require('./util/database')
 const Product = require('./models/product')
 const Cart = require('./models/cart')
 const User = require('./models/user')
+const CartItem = require('./models/cart-item')
+const Order = require('./models/order')
+const OrderItem = require('./models/order-item')
+
 const app = express();
 
 
@@ -41,25 +45,35 @@ app.use('/admin',adminRoutes);
 app.use(shopRoutes);
 
 app.use(errorController.error);
-
+//ESTABLECER RELACIONES
 Product.belongsTo(User,{ constraints:true,onDelete:'CASCADE' });
 User.hasMany(Product);
+User.hasOne(Cart);
+Cart.belongsTo(User);
+Cart.belongsToMany(Product,{through:CartItem});
+Product.belongsToMany(Cart,{through:CartItem})
+Order.belongsTo(User)
+User.hasMany(Order)
+Order.belongsToMany(Product, {through:OrderItem})
 
-sequelize.sync()
+sequelize.sync({force:true})
 .then(result=>{
-    User.findById(1)
+    return User.findByPk(1)
     //console.log(result)
     
 })
 .then(user =>{
     if(!user){
-        User.create({name:'Max',email:'aaaa@gmail.com'})
+        return User.create({name:'Max',email:'aaaa@gmail.com'})
     }
     return user;
 })
 .then(user =>{
-    console.log(user)
+    return user.createCart();
+})
+.then(cart =>{
     app.listen(3000)
+
 })
 .catch(err=>{console.log(err)});
 //CREATES TABLES FROM THE MODELS

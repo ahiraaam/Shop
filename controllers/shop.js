@@ -56,7 +56,20 @@ exports.getIndex = (req,res,next) =>{
 
 
 exports.getCart = (req,res,next) =>{ //display the cart
-    Cart.getCart(cart =>{
+    req.user.getCart()
+    .then(cart =>{
+        return cart
+        .getProducts()
+        .then(products=>{
+            res.render('shop/cart' , {
+            path:'/cart',
+            pageTitle:'Your Cart',
+            products: products
+            });
+        }).catch(err=> console.log(err))
+    })
+    .catch(err => console.log(err))
+    /*Cart.getCart(cart =>{
         Product.fetchAll(products =>{
             const cartProducts =[];
             for(product of products){
@@ -73,15 +86,50 @@ exports.getCart = (req,res,next) =>{ //display the cart
                 products: cartProducts
             });
         });
-    });
+    });*/
     
 };
+//AGREGAR PRODUCTOS AL CARRIT0
 exports.postCart = (req, res, next) => {
-    const prodId = req.body.productId;
+    const prodId = req.body.productId
+    let fetchedCart 
+    let newQuantity =1;
+    req.user
+    .getCart()
+    .then(cart =>{
+        fetchedCart = cart
+        return cart.getProducts({where:{id:prodId}}); //me devuelve el array products
+    })
+    .then(products =>{
+        let product
+        if(products.length >0){
+            product = products[0]
+        }
+        
+        if(product){
+            //Add car that is already in it
+            const oldQuantity = product.cartItem.quantity;
+            newQuantity = oldQuantity + 1
+            return product
+        }
+        //Add Product For the first time
+        return Product.findById(prodId)
+        })
+        .then(product =>{
+            return fetchedCart.addProduct(product,{
+                through:{quantity:newQuantity}
+            })
+        })
+        .then(()=>{
+            res.redirect('/cart');
+        })
+        .catch(err => console.log(err))
+    
+    /*const prodId = req.body.productId;
     Product.findByPk(prodId, product => {
       Cart.addProduct(prodId, product.price);
     });
-    res.redirect('/cart');
+    res.redirect('/cart');*/
   };
 
 exports.getOrders = (req,res,next) =>{
@@ -100,9 +148,23 @@ exports.getCheckout = (req,res,index) =>{
 
 exports.postCartDeleteProduct = (req,res,index) =>{
     const prodId = req.body.productId;
-    Product.findByPk(prodId,product =>{
-        Cart.deleteProduct(prodId,product.price)
+    req.user
+    .getCart()
+    .then(cart =>{
+        return cart.getProducts({where:{id:prodId}});
+    })
+    .then(products=>{
+        const product = products[0]
+        //borrar el producto solo el car
+        return product.cartItem.destroy()
+    })
+    .then(result=>{
         res.redirect('/cart')
     })
+    .catch(err=> console.log(err))
+    //Product.findByPk(prodId,product =>{ MYSQL NORMAL
+    //    Cart.deleteProduct(prodId,product.price)
+    //    res.redirect('/cart')
+    //})
     
 }
